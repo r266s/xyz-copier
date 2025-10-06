@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "xyz-copier",
+	"version": "${version}",
+	"name": "XYZ-copier",
+	"description": "Helps you to manage your coordinates!",
+	"authors": [
+		"r266"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/xyz-copier/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.r266.xyz.XYZcopier"
+		],
+		"fabric-datagen": [
+			"net.r266.xyz.XYZcopierDataGenerator"
+		],
+        "client": [
+          "net.r266.xyz.XYZcopierClient"
+        ]
+	},
+	"mixins": [
+		"xyz-copier.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.17.2",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
