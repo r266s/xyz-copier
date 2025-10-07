@@ -1,8 +1,12 @@
 package net.r266.xyz;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.r266.xyz.Commands.CopyCoordinate;
 
 public class XYZcopierClient implements ClientModInitializer {
     @Override
-    public void onInitializeClient() {}
+    public void onInitializeClient() {
+      ClientCommandRegistrationCallback.EVENT.register(CopyCoordinate::register);
+    }
 }
