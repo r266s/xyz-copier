@@ -3,7 +3,7 @@
 	"id": "xyz-copier",
 	"version": "${version}",
 	"name": "XYZ-copier",
-	"description": "Helps you to manage your coordinates!",
+	"description": "Helps you to copy your coordinates!",
 	"authors": [
 		"r266"
 	],
