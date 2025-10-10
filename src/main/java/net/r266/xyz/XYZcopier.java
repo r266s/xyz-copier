@@ -11,6 +11,6 @@ public class XYZcopier implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("Loading XYZ...");
+		LOGGER.info("Loading XYZ-copier...");
 	}
 }
