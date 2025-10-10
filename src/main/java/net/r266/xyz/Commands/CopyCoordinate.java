@@ -1,5 +1,7 @@
 package net.r266.xyz.Commands;
 
+import java.util.Map;
+import java.util.HashMap;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -14,15 +16,18 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Style;
 import net.minecraft.util.Formatting;
 import static net.minecraft.text.Text.literal;
+import static net.r266.xyz.ModChecks.Utilities.IsFlagVaild;
 
 public class CopyCoordinate {
   public static String Arg1 = "Axis";
   public static String Arg2 = "WithAxisHeaders";
+  public static String Arg3 = "flags";
 
   public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandRegistryAccess commandRegistryAccess) {
     dispatcher.register(ClientCommandManager.literal("CopyCoordinate")
             .then(ClientCommandManager.argument(Arg1, StringArgumentType.string()).executes(CopyCoordinate::Run)
-                    .then(ClientCommandManager.argument(Arg2, BoolArgumentType.bool()).executes(CopyCoordinate::Run))));
+                    .then(ClientCommandManager.argument(Arg2, BoolArgumentType.bool()).executes(CopyCoordinate::Run)
+                            .then(ClientCommandManager.argument(Arg3, StringArgumentType.string()).executes(CopyCoordinate::Run)))));
   }
 
   private static boolean IsCorrectAxis(char Axi, String AllowedAxis) {
@@ -37,6 +42,8 @@ public class CopyCoordinate {
   private static int Run(CommandContext<FabricClientCommandSource> ClientCommandSourceCommandContext) throws CommandSyntaxException {
     String AllowedAxis = "XYZ".toUpperCase();
     String SelectedAxis = StringArgumentType.getString(ClientCommandSourceCommandContext, Arg1).toUpperCase();
+
+    String CommandFlags = "";
     boolean AddAxisHeaders;
 
     try {
@@ -45,56 +52,72 @@ public class CopyCoordinate {
       AddAxisHeaders = false;
     }
 
+    try {
+      CommandFlags = StringArgumentType.getString(ClientCommandSourceCommandContext, Arg3).toLowerCase();
+    } catch (IllegalArgumentException ignored) {}
+
     FabricClientCommandSource ClientCommandSource = ClientCommandSourceCommandContext.getSource();
     Entity Player = ClientCommandSource.getEntity();
 
-    if (Player == null) {
-      ClientCommandSource.sendFeedback(literal("Player not exist"));
-      return -1;
-    }
-
     if (SelectedAxis.length() <= 3 && !SelectedAxis.isEmpty()) {
-      String Coords = "";
+      HashMap<Object, Object> Coords = new HashMap<>();
 
       for (char SelectedAxi : SelectedAxis.toCharArray()) {
         if (IsCorrectAxis(SelectedAxi, AllowedAxis)) {
           double CorrectAxis = 0.00;
+          int order = 0;
 
           if (SelectedAxi == 'X') {
             CorrectAxis = Player.getX();
           } else if (SelectedAxi == 'Z') {
             CorrectAxis = Player.getZ();
+            order = 2;
           } else if (SelectedAxi == 'Y'){
             CorrectAxis = Player.getY();
+            order = 1;
           }
 
-          Coords += (AddAxisHeaders) ? "%s: %.2f ".formatted(SelectedAxi, CorrectAxis) : "%.2f ".formatted(CorrectAxis);
+          if (!CommandFlags.isEmpty()) {
+            var result = IsFlagVaild(CommandFlags);
+            if (result.getA() && result.getB() != null) {
+              CorrectAxis = result.getB().apply(CorrectAxis);
+            } else {
+              ClientCommandSource.sendError(literal("'%s' is not a flag!".formatted(CommandFlags)));
+              return -1;
+            }
+          }
+
+          String AddAxis = (AddAxisHeaders) ? "%s: %.3f ".formatted(SelectedAxi, CorrectAxis) : "%.3f ".formatted(CorrectAxis);
+          Coords.put(order, AddAxis);
         } else {
-          ClientCommandSource.sendFeedback(literal("'%s' is not axis!".formatted(SelectedAxi)));
+          ClientCommandSource.sendError(literal("'%s' is not axis!".formatted(SelectedAxi)));
           return -1;
         }
       }
 
       MinecraftClient WindowClient = MinecraftClient.getInstance();
+      StringBuilder finalCoords = new StringBuilder();
 
-      String finalCoords = Coords;
+      for (Map.Entry<Object, Object> entry: Coords.entrySet()) {
+        finalCoords.append(entry.getValue());
+      }
 
       if (WindowClient != null) {
-        WindowClient.keyboard.setClipboard(finalCoords);
+        WindowClient.keyboard.setClipboard(finalCoords.toString());
         ClientCommandSource.sendFeedback(literal("Successfully copied to clipboard!")
-                .formatted(Formatting.GREEN, Formatting.BOLD, Formatting.UNDERLINE));
+                .formatted(Formatting.GREEN, Formatting.BOLD));
       } else {
         ClientCommandSource.sendFeedback(
                 literal("Cannot Access clipboard, Click me to copy the " + SelectedAxis + ".")
-                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.CopyToClipboard(finalCoords))));
+                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.CopyToClipboard(finalCoords.toString()))));
       }
 
       return 1;
     } else {
       if (SelectedAxis.length() > 3) {
-        ClientCommandSource.sendFeedback(literal("Trying to access the 4th dimension?"));
+        ClientCommandSource.sendError(literal("Trying to access the 4th dimension?"));
       } else {
-        ClientCommandSource.sendFeedback(literal("Select a Axis!"));
+        ClientCommandSource.sendError(literal("Select a Axis!"));
       }
       return -1;
     }
