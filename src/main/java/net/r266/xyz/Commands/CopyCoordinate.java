@@ -28,6 +28,7 @@ public class CopyCoordinate {
             .then(ClientCommandManager.argument(Arg1, StringArgumentType.string()).executes(CopyCoordinate::Run)
                     .then(ClientCommandManager.argument(Arg2, BoolArgumentType.bool()).executes(CopyCoordinate::Run)
                             .then(ClientCommandManager.argument(Arg3, StringArgumentType.string()).executes(CopyCoordinate::Run)))));
+
   }
 
   private static boolean IsCorrectAxis(char Axi, String AllowedAxis) {
@@ -87,7 +88,7 @@ public class CopyCoordinate {
             }
           }
 
-          String AddAxis = (AddAxisHeaders) ? "%s: %.3f ".formatted(SelectedAxi, CorrectAxis) : "%.3f ".formatted(CorrectAxis);
+          String AddAxis = (AddAxisHeaders) ? "%s: %.3f".formatted(SelectedAxi, CorrectAxis) : "%.3f".formatted(CorrectAxis);
           Coords.put(order, AddAxis);
         } else {
           ClientCommandSource.sendError(literal("'%s' is not axis!".formatted(SelectedAxi)));
@@ -97,9 +98,13 @@ public class CopyCoordinate {
 
       MinecraftClient WindowClient = MinecraftClient.getInstance();
       StringBuilder finalCoords = new StringBuilder();
+      int temp_int = 1;
 
       for (Map.Entry<Object, Object> entry: Coords.entrySet()) {
+        String temp = (temp_int < Coords.size()) ? " " : "";
         finalCoords.append(entry.getValue());
+        finalCoords.append(temp);
+        temp_int++;
       }
 
       if (WindowClient != null) {
