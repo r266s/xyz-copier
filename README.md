@@ -6,7 +6,7 @@
   - `Flags`: 
     - `-ru` | `Description`: rounds up the selected axis.
     - `-rd` | `Description`: rounds down the selected axis.
-    - `-ctn` | `Description`: Converts the overworld axis to nether axis.
+    - `-ctn` | `Description`: Converts the overworld axis to nether axis (divided by 8).
 
 
 Made by r266.
