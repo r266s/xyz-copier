@@ -1,26 +1,19 @@
 package net.r266.xyz.Commands;
 
-import java.util.Map;
-import java.util.HashMap;
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
-import net.minecraft.client.MinecraftClient;
+import java.util.*;
+import net.minecraft.text.*;
 import net.minecraft.entity.Entity;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.Style;
 import net.minecraft.util.Formatting;
-import static net.minecraft.text.Text.literal;
-import static net.r266.xyz.ModChecks.Utilities.IsFlagValid;
+import static net.r266.xyz.Utilities.*;
+import static net.minecraft.text.Text.*;
+import com.mojang.brigadier.arguments.*;
+import net.minecraft.client.MinecraftClient;
+import com.mojang.brigadier.CommandDispatcher;
+import net.fabricmc.fabric.api.client.command.v2.*;
+import com.mojang.brigadier.context.CommandContext;
 
 public class CopyCoordinate {
-  public static String Arg1 = "Axis";
-  public static String Arg2 = "WithAxisHeaders";
-  public static String Arg3 = "flags";
-
+  final private static String Arg1 = "axis", Arg2 = "includeHeaders", Arg3 = "flags";
   public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
     dispatcher.register(ClientCommandManager.literal("CopyCoordinate")
             .then(ClientCommandManager.argument(Arg1, StringArgumentType.string()).executes(CopyCoordinate::Run)
@@ -29,100 +22,86 @@ public class CopyCoordinate {
 
   }
 
-  private static int OnCommandSendError(String msg, FabricClientCommandSource Source) {
-    Source.sendError(literal(msg));
+  private static int OnCommandSendError(MutableText msg, FabricClientCommandSource Source) {
+    Source.sendError(msg);
     return -1;
   }
-
-  private static int Run(CommandContext<FabricClientCommandSource> ClientCommandSourceCommandContext) {
-    String AllowedAxis = "XYZ".toUpperCase();
-    String SelectedAxis = StringArgumentType.getString(ClientCommandSourceCommandContext, Arg1).toUpperCase();
-
-    FabricClientCommandSource ClientCommandSource = ClientCommandSourceCommandContext.getSource();
-    Entity Player = ClientCommandSource.getEntity();
-
+  
+  private static int OnCommandSendSuccess(MutableText msg, FabricClientCommandSource Source) {
+    Source.sendFeedback(msg);
+    return 1;
+  }
+  
+  private static int Run(CommandContext<FabricClientCommandSource> ClientCommandContext) {
+    FabricClientCommandSource ClientCommandSource = ClientCommandContext.getSource();
     MinecraftClient WindowClient = MinecraftClient.getInstance();
-    StringBuilder finalAxis = new StringBuilder();
-
-    int temp_int = 1;
-    String CommandFlags = "";
-    boolean AddAxisHeaders = false;
-
+    Entity PlayerClient = ClientCommandSource.getEntity();
+    
+    String InputAxis = StringArgumentType.getString(ClientCommandContext, Arg1).toUpperCase();
+    StringBuilder FormattedCoordinates = new StringBuilder();
+    String[] CommandEachFlag = null; String CommandFlags;
+    boolean IncludeHeaders = false;
+    
     try {
-      AddAxisHeaders = BoolArgumentType.getBool(ClientCommandSourceCommandContext, Arg2);
+      IncludeHeaders = BoolArgumentType.getBool(ClientCommandContext, Arg2);
+      CommandFlags = StringArgumentType.getString(ClientCommandContext, Arg3).toLowerCase();
+      CommandEachFlag = (!CommandFlags.isEmpty()) ? CommandFlags.split(" ") : null;
     } catch (Exception e) {
       if (!(e instanceof IllegalArgumentException)) {
-        return OnCommandSendError(e.getMessage(), ClientCommandSource);
+        return OnCommandSendError(literal(e.getMessage()), ClientCommandSource);
       }
     }
-
-    try {
-      CommandFlags = StringArgumentType.getString(ClientCommandSourceCommandContext, Arg3).toLowerCase();
-    } catch (Exception e) {
-      if (!(e instanceof IllegalArgumentException)) {
-        return OnCommandSendError(e.getMessage(), ClientCommandSource);
-      }
-    }
-
-    if (SelectedAxis.length() <= 3 && !SelectedAxis.isEmpty()) {
-      HashMap<Object, Object> ListOfAxis = new HashMap<>();
-      for (char SelectedAxi : SelectedAxis.toCharArray()) {
-        if (AllowedAxis.contains(String.valueOf(SelectedAxi))) {
-          double CorrectAxis = 0.00;
-          int order = 0;
-
-          switch (SelectedAxi) {
-            case 'X':
-              CorrectAxis = Player.getX();
-              break;
-            case 'Z':
-              CorrectAxis = Player.getZ();
-              order = 2;
-              break;
-            case 'Y':
-              CorrectAxis = Player.getY();
-              order = 1;
-          }
-
-          if (!CommandFlags.isEmpty()) {
-            for (String f : CommandFlags.split(" ")) {
-              var result = IsFlagValid(f);
-              if (result.getA() && result.getB() != null) {
-                CorrectAxis = result.getB().apply(CorrectAxis);
-              } else {
-                return OnCommandSendError("'%s' is not a flag!".formatted(f), ClientCommandSource);
-              }
+    
+    if (InputAxis.length() <= 3 && !InputAxis.isEmpty()) {
+      HashMap<Object, Object> CoordinateMap = new HashMap<>();
+      double CurrentAxisValue = 0; int AxisOrder = 0;
+      
+      for (char AxisChar : InputAxis.toCharArray()) {
+        switch (AxisChar) {
+          case 'X': CurrentAxisValue = PlayerClient.getX(); break;
+          case 'Y': CurrentAxisValue = PlayerClient.getY(); AxisOrder = 1; break;
+          case 'Z': CurrentAxisValue = PlayerClient.getZ(); AxisOrder = 2; break;
+          default: return OnCommandSendError(literal("Unknown axis: '%s'".formatted(CurrentAxisValue)), ClientCommandSource);
+        }
+        
+        if (CommandEachFlag != null) {
+          for (String AssignedFlag : CommandEachFlag) {
+            var result = IsFlagValid(AssignedFlag); var IsValid = result.getA(); var FlagFunc = result.getB();
+            
+            if (IsValid && (FlagFunc != null)) {
+              CurrentAxisValue = FlagFunc.apply(CurrentAxisValue);
+            } else {
+              return OnCommandSendError(literal("'%s' is not a flag!".formatted(AssignedFlag)), ClientCommandSource);
             }
           }
-
-          String AddAxis = (AddAxisHeaders) ? "%s: %.3f".formatted(SelectedAxi, CorrectAxis) : "%.3f".formatted(CorrectAxis);
-          ListOfAxis.put(order, AddAxis);
-        } else {
-          return OnCommandSendError("'%s' is not axis!".formatted(SelectedAxi), ClientCommandSource);
         }
+        
+        String FormattedAxis = "%.3f".formatted(CurrentAxisValue);
+        FormattedAxis = (IncludeHeaders) ? "%s: ".formatted(AxisChar) + FormattedAxis : FormattedAxis;
+        CoordinateMap.put(AxisOrder, FormattedAxis); AxisOrder = 0; CurrentAxisValue = 0;
       }
-
-      for (Map.Entry<Object, Object> entry: ListOfAxis.entrySet()) {
-        String temp = (temp_int < ListOfAxis.size()) ? " " : "";
-        finalAxis.append(entry.getValue());
-        finalAxis.append(temp);
-        temp_int++;
+      
+      var CoordinateEntries = new ArrayList<>(CoordinateMap.entrySet());
+      
+      for (int i = 0; i < CoordinateEntries.size(); i++) {
+        String doSpace = ((i+1) < CoordinateMap.size()) ? " " : "";
+        FormattedCoordinates.append(CoordinateEntries.get(i).getValue()).append(doSpace);
       }
-
+      
+      MutableText SuccessfulMessage;
+      
       if (WindowClient != null) {
-        WindowClient.keyboard.setClipboard(finalAxis.toString());
-        ClientCommandSource.sendFeedback(literal("Successfully copied to clipboard!")
-                .formatted(Formatting.GREEN, Formatting.BOLD));
+        WindowClient.keyboard.setClipboard(FormattedCoordinates.toString());
+        SuccessfulMessage = literal("Successfully copied to clipboard!").formatted(Formatting.GREEN, Formatting.BOLD);
       } else {
-        ClientCommandSource.sendFeedback(
-                literal("Cannot Access clipboard, Click me to copy the " + SelectedAxis + ".")
-                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.CopyToClipboard(finalAxis.toString()))));
+        SuccessfulMessage = literal("Cannot Access clipboard, Click this message to copy the axis.")
+                .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.CopyToClipboard(FormattedCoordinates.toString())));
       }
 
-      return 1;
+      return OnCommandSendSuccess(SuccessfulMessage, ClientCommandSource);
     } else {
-      String MG = (SelectedAxis.length() > 3) ? "Trying to access the 4th dimension?" : "Select a Axis!";
-      return OnCommandSendError(MG, ClientCommandSource);
+      String MG = (InputAxis.length() > 3) ? "Trying to access the 4th dimension?" : "Select a Axis!";
+      return OnCommandSendError(literal(MG), ClientCommandSource);
     }
   }
 }
