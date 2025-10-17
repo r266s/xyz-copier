@@ -3,6 +3,7 @@ package net.r266.xyz.Commands;
 import java.util.*;
 import net.minecraft.text.*;
 import net.minecraft.entity.Entity;
+import java.util.function.Consumer;
 import net.minecraft.util.Formatting;
 import static net.r266.xyz.Utilities.*;
 import static net.minecraft.text.Text.*;
@@ -22,14 +23,17 @@ public class CopyCoordinate {
 
   }
 
-  private static int OnCommandSendError(MutableText msg, FabricClientCommandSource Source) {
-    Source.sendError(msg);
-    return -1;
-  }
-  
-  private static int OnCommandSendSuccess(MutableText msg, FabricClientCommandSource Source) {
-    Source.sendFeedback(msg);
-    return 1;
+  private static int OnCommandSendFeedback(int FeedBackType, MutableText msg, FabricClientCommandSource Source) {
+    int FormatType = (FeedBackType < 1) ? -1 : 1;
+    
+    Map<Integer, Consumer<Text>> ListOfFeedBackType = new HashMap<>();
+    ListOfFeedBackType.put(1, Source::sendFeedback);
+    ListOfFeedBackType.put(-1, Source::sendError);
+    
+    Consumer<Text> Result = ListOfFeedBackType.get(FormatType);
+    
+    Result.accept(msg);
+    return FormatType;
   }
   
   private static int Run(CommandContext<FabricClientCommandSource> ClientCommandContext) {
@@ -48,20 +52,20 @@ public class CopyCoordinate {
       CommandEachFlag = (!CommandFlags.isEmpty()) ? CommandFlags.split(" ") : null;
     } catch (Exception e) {
       if (!(e instanceof IllegalArgumentException)) {
-        return OnCommandSendError(literal(e.getMessage()), ClientCommandSource);
+        return OnCommandSendFeedback(-1, literal(e.getMessage()), ClientCommandSource);
       }
     }
     
     if (InputAxis.length() <= 3 && !InputAxis.isEmpty()) {
       HashMap<Object, Object> CoordinateMap = new HashMap<>();
-      double CurrentAxisValue = 0; int AxisOrder = 0;
+      double CurrentAxisValue; int AxisOrder = 0;
       
       for (char AxisChar : InputAxis.toCharArray()) {
         switch (AxisChar) {
           case 'X': CurrentAxisValue = PlayerClient.getX(); break;
           case 'Y': CurrentAxisValue = PlayerClient.getY(); AxisOrder = 1; break;
           case 'Z': CurrentAxisValue = PlayerClient.getZ(); AxisOrder = 2; break;
-          default: return OnCommandSendError(literal("Unknown axis: '%s'".formatted(CurrentAxisValue)), ClientCommandSource);
+          default: return OnCommandSendFeedback(-1, literal("Unknown axis: '%s'".formatted(AxisChar)), ClientCommandSource);
         }
         
         if (CommandEachFlag != null) {
@@ -71,14 +75,14 @@ public class CopyCoordinate {
             if (IsValid && (FlagFunc != null)) {
               CurrentAxisValue = FlagFunc.apply(CurrentAxisValue);
             } else {
-              return OnCommandSendError(literal("'%s' is not a flag!".formatted(AssignedFlag)), ClientCommandSource);
+              return OnCommandSendFeedback(-1, literal("'%s' is not a flag!".formatted(AssignedFlag)), ClientCommandSource);
             }
           }
         }
         
         String FormattedAxis = "%.3f".formatted(CurrentAxisValue);
         FormattedAxis = (IncludeHeaders) ? "%s: ".formatted(AxisChar) + FormattedAxis : FormattedAxis;
-        CoordinateMap.put(AxisOrder, FormattedAxis); AxisOrder = 0; CurrentAxisValue = 0;
+        CoordinateMap.put(AxisOrder, FormattedAxis); AxisOrder = 0;
       }
       
       var CoordinateEntries = new ArrayList<>(CoordinateMap.entrySet());
@@ -98,10 +102,10 @@ public class CopyCoordinate {
                 .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.CopyToClipboard(FormattedCoordinates.toString())));
       }
 
-      return OnCommandSendSuccess(SuccessfulMessage, ClientCommandSource);
+      return OnCommandSendFeedback(1, SuccessfulMessage, ClientCommandSource);
     } else {
       String MG = (InputAxis.length() > 3) ? "Trying to access the 4th dimension?" : "Select a Axis!";
-      return OnCommandSendError(literal(MG), ClientCommandSource);
+      return OnCommandSendFeedback(-1, literal(MG), ClientCommandSource);
     }
   }
 }
