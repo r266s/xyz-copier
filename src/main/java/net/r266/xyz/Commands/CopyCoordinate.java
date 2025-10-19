@@ -5,13 +5,13 @@ import net.minecraft.text.*;
 import net.minecraft.entity.Entity;
 import java.util.function.Consumer;
 import net.minecraft.util.Formatting;
-import static net.r266.xyz.Utilities.*;
 import static net.minecraft.text.Text.*;
 import com.mojang.brigadier.arguments.*;
 import net.minecraft.client.MinecraftClient;
 import com.mojang.brigadier.CommandDispatcher;
 import net.fabricmc.fabric.api.client.command.v2.*;
 import com.mojang.brigadier.context.CommandContext;
+import net.r266.xyz.UtilitiesClasses.CommandFlagClass;
 
 public class CopyCoordinate {
   final private static String Arg1 = "axis", Arg2 = "includeHeaders", Arg3 = "flags";
@@ -43,13 +43,12 @@ public class CopyCoordinate {
     
     String InputAxis = StringArgumentType.getString(ClientCommandContext, Arg1).toUpperCase();
     StringBuilder FormattedCoordinates = new StringBuilder();
-    String[] CommandEachFlag = null; String CommandFlags;
+    String CommandFlags = "";
     boolean IncludeHeaders = false;
     
     try {
       IncludeHeaders = BoolArgumentType.getBool(ClientCommandContext, Arg2);
       CommandFlags = StringArgumentType.getString(ClientCommandContext, Arg3).toLowerCase();
-      CommandEachFlag = (!CommandFlags.isEmpty()) ? CommandFlags.split(" ") : null;
     } catch (Exception e) {
       if (!(e instanceof IllegalArgumentException)) {
         return OnCommandSendFeedback(-1, literal(e.getMessage()), ClientCommandSource);
@@ -68,15 +67,24 @@ public class CopyCoordinate {
           default: return OnCommandSendFeedback(-1, literal("Unknown axis: '%s'".formatted(AxisChar)), ClientCommandSource);
         }
         
-        if (CommandEachFlag != null) {
-          for (String AssignedFlag : CommandEachFlag) {
-            var result = IsFlagValid(AssignedFlag); var IsValid = result.getA(); var FlagFunc = result.getB();
-            
-            if (IsValid && (FlagFunc != null)) {
-              CurrentAxisValue = FlagFunc.apply(CurrentAxisValue);
+        if (!CommandFlags.isEmpty()) {
+          var Parser = new CommandFlagClass();
+          Parser.ParseFlags(CommandFlags);
+          ArrayList<String> CorrectFlags = Parser.CorrectFlags(), WrongFlags = Parser.WrongFlags();
+          
+          if (WrongFlags.isEmpty()) {
+            if (!CorrectFlags.isEmpty()) {
+              for (String flag : CorrectFlags) {
+                CurrentAxisValue = Parser.FlagFunction(flag).apply(CurrentAxisValue);
+              }
             } else {
-              return OnCommandSendFeedback(-1, literal("'%s' is not a flag!".formatted(AssignedFlag)), ClientCommandSource);
+              return OnCommandSendFeedback(-1, literal("Something went wrong!"), ClientCommandSource);
             }
+          } else {
+            for (String InvalidFlag : WrongFlags) {
+              ClientCommandSource.sendError(literal("'%s' isn't a flag!".formatted(InvalidFlag)));
+            }
+            return -1;
           }
         }
         
