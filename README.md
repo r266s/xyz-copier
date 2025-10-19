@@ -1,9 +1,8 @@
 # _XYZ_ Copier <u>Documentation</u>:
 
-## Command(*s*)
+## Command(*s*):
 - `CopyCoordinate`:
-  - `Usage`: `/CopyCoordinate <axis> [<includeHeaders>] <flags>` 
-  - `Exmaple Usage`: `/CopyCoordinate XZ true` -> Expected result: `X: 100.000 Z: 50.000`
+  - `Usage`: `/CopyCoordinate <axis> [<includeHeaders>] <flags>`
   ### Argument(*s*):
     1. `<axis>` **(required)**
     2. `[<includeHeaders>]` **(optional)** 
@@ -13,6 +12,11 @@
        - `-rd` |> `Description`: rounds down the selected axis.
        - `-rti` |> `Description`: rounds to the nearest whole number selected axis.
        - `-ctn` |> `Description`: Converts the overworld axis to nether axis (divided by 8).
-
+   
+   ### Exmaple Usage:
+    - without flags:
+      - `/CopyCoordinate XZ true` -> `X: 100.459 Z: 109.489`
+    - with flags:
+      - `/CopyCoordinate XZ true -rti` -> `X: 100.000 Z: 109.000`
 
 ### _Made by r266._
